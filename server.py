@@ -7,7 +7,10 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 import database
-from carrier_service import detect_carrier, normalize_status, get_carrier_checkpoints, CARRIERS, MILESTONES
+from carrier_service import (
+    detect_carrier, normalize_status, get_carrier_checkpoints, CARRIERS, MILESTONES,
+    get_api_key, set_api_key, query_17track_live
+)
 
 PORT = int(os.environ.get("PORT", 8080))
 PUBLIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
@@ -69,6 +72,12 @@ class TrackingBridgeHandler(BaseHTTPRequestHandler):
             self.send_json({"carriers": CARRIERS})
             return
 
+        if path == "/api/settings":
+            k = get_api_key()
+            masked = (k[:4] + "..." + k[-4:]) if len(k) >= 8 else ("Configured" if k else "")
+            self.send_json({"has_api_key": bool(k), "api_key_masked": masked})
+            return
+
         # Static File Serving
         self.serve_static(path)
 
@@ -83,6 +92,18 @@ class TrackingBridgeHandler(BaseHTTPRequestHandler):
         if path.startswith("/api/shipments/") and path.endswith("/advance"):
             shipment_id = path.split("/")[3]
             self.handle_advance_shipment(shipment_id)
+            return
+
+        if path.startswith("/api/shipments/") and path.endswith("/sync"):
+            shipment_id = path.split("/")[3]
+            self.handle_sync_shipment(shipment_id)
+            return
+
+        if path == "/api/settings":
+            data = self.read_json_body() or {}
+            k = str(data.get("track17_api_key", "")).strip()
+            set_api_key(k)
+            self.send_json({"message": "17TRACK API Key saved successfully", "has_api_key": bool(k)})
             return
 
         if path == "/api/shipments/batch":
@@ -411,6 +432,49 @@ class TrackingBridgeHandler(BaseHTTPRequestHandler):
         self.send_json({
             "message": f"Shipment status advanced to {next_status}",
             "new_status": next_status
+        })
+
+    def handle_sync_shipment(self, shipment_id):
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM shipments WHERE id = ?", (shipment_id,))
+        shipment = cursor.fetchone()
+        if not shipment:
+            conn.close()
+            self.send_error_json("Shipment not found", 404)
+            return
+
+        tracking_no = shipment["tracking_number"]
+        carrier_code = shipment["carrier_code"]
+        live_events = query_17track_live(tracking_no, carrier_code)
+        if not live_events:
+            conn.close()
+            self.send_json({
+                "message": "No live carrier updates available yet. Configure 17TRACK API Key in settings.",
+                "synced": False
+            })
+            return
+
+        cursor.execute("DELETE FROM tracking_events WHERE shipment_id = ?", (shipment_id,))
+        for ev in live_events:
+            cursor.execute("""
+                INSERT INTO tracking_events (shipment_id, event_time, status, carrier_status, location, description)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (shipment_id, ev["event_time"], ev["status"], ev["carrier_status"], ev["location"], ev["description"]))
+
+        latest = live_events[0]
+        cursor.execute("""
+            UPDATE shipments
+            SET current_status = ?, current_location = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (latest["status"], latest["location"], shipment_id))
+        conn.commit()
+        conn.close()
+
+        self.send_json({
+            "message": f"Successfully synced with live {shipment['carrier_name']} data!",
+            "synced": True,
+            "status": latest["status"]
         })
 
     def handle_batch_import(self):

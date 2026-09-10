@@ -3,7 +3,34 @@ import os
 import json
 import urllib.request
 import urllib.error
-from datetime import datetime, timedelta
+from datetime import datetime
+
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+
+def get_api_key():
+    env_key = os.environ.get("TRACK17_API_KEY")
+    if env_key:
+        return env_key.strip()
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, "r") as f:
+                cfg = json.load(f)
+                return cfg.get("track17_api_key", "").strip()
+        except Exception:
+            pass
+    return ""
+
+def set_api_key(key):
+    cfg = {}
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, "r") as f:
+                cfg = json.load(f)
+        except Exception:
+            pass
+    cfg["track17_api_key"] = key.strip()
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(cfg, f, indent=2)
 
 # Supported carrier metadata
 CARRIERS = {
@@ -72,7 +99,6 @@ CARRIERS = {
     }
 }
 
-# Standardized Milestone Progression
 MILESTONES = [
     "Shipment Created",
     "Collected",
@@ -82,20 +108,17 @@ MILESTONES = [
 ]
 
 def detect_carrier(tracking_number):
-    """
-    Intelligently identifies the carrier from tracking number pattern.
-    """
     clean_num = str(tracking_number).strip().upper().replace(" ", "").replace("-", "")
 
     # UPS: 1Z + 16 alphanumeric characters
     if re.match(r"^1Z[0-9A-Z]{16}$", clean_num):
         return CARRIERS["ups"]
 
-    # DHL Express: 10 numeric digits, or starts with DHL / JJD / etc
+    # DHL Express: 10 numeric digits, or starts with DHL / JJD
     if re.match(r"^\d{10}$", clean_num) or clean_num.startswith("DHL") or clean_num.startswith("JJD"):
         return CARRIERS["dhl"]
 
-    # DPD: 14 numeric digits (like 15504338529265 in reference) or 12 digits
+    # DPD: 14 numeric digits (like 15504338529265 in reference) or 12 digits starting with 0/1
     if re.match(r"^\d{14}$", clean_num) or (clean_num.startswith("155") and len(clean_num) == 14):
         return CARRIERS["dpd-uk"]
     if re.match(r"^\d{12}$", clean_num) and (clean_num.startswith("0") or clean_num.startswith("1")):
@@ -116,12 +139,9 @@ def detect_carrier(tracking_number):
     return CARRIERS["generic"]
 
 def normalize_status(raw_status_text):
-    """
-    Converts raw carrier status strings into standardized milestone statuses.
-    """
     text = str(raw_status_text).lower()
 
-    if any(k in text for k in ["deliver", "signed", "completed"]):
+    if any(k in text for k in ["delivered", "signed", "completed"]):
         return "Delivered"
     if any(k in text for k in ["out for delivery", "with courier", "on delivery vehicle", "with driver"]):
         return "Out for Delivery"
@@ -129,111 +149,102 @@ def normalize_status(raw_status_text):
         return "At Depot"
     if any(k in text for k in ["arrived destination", "arrived in", "destination country", "inbound airport"]):
         return "Arrived Destination"
-    if any(k in text for k in ["flight", "departed airport", "departed facility", "transit"]):
+    if any(k in text for k in ["flight", "departed airport", "departed facility"]):
         return "Flight Dispatched"
     if any(k in text for k in ["customs", "clearance", "duty"]):
         return "Customs Clearance"
-    if any(k in text for k in ["origin facility", "transit scan", "location scan", "departed"]):
+    if any(k in text for k in ["transit", "in transit", "location scan", "departed"]):
         return "In Transit"
-    if any(k in text for k in ["picked up", "collected", "origin scan", "received at facility"]):
+    if any(k in text for k in ["picked up", "collected", "origin scan", "we have your package", "received at facility"]):
         return "Collected"
-    if any(k in text for k in ["created", "label created", "information received", "order data"]):
+    if any(k in text for k in ["label created", "created", "information received", "order data", "electronic shipment"]):
         return "Shipment Created"
     if any(k in text for k in ["exception", "delay", "failed", "attempted", "returned"]):
         return "Exception"
 
-    return "In Transit"
+    return "Shipment Created"
+
+def query_17track_live(tracking_number, carrier_code=None):
+    """
+    Queries live real-time carrier status via 17TRACK API v2.2.
+    """
+    api_key = get_api_key()
+    if not api_key:
+        return None
+
+    try:
+        # Step 1: Register tracking number with 17TRACK if not already registered
+        reg_url = "https://api.17track.net/track/v2.2/register"
+        reg_payload = [{"number": tracking_number}]
+        reg_req = urllib.request.Request(
+            reg_url,
+            data=json.dumps(reg_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "17token": api_key}
+        )
+        try:
+            with urllib.request.urlopen(reg_req, timeout=8) as r:
+                pass
+        except Exception:
+            pass
+
+        # Step 2: Query tracking info
+        url = "https://api.17track.net/track/v2.2/gettrackinfo"
+        payload = [{"number": tracking_number}]
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "17token": api_key}
+        )
+        with urllib.request.urlopen(req, timeout=10) as response:
+            if response.status == 200:
+                res_data = json.loads(response.read().decode("utf-8"))
+                accepted = res_data.get("data", {}).get("accepted", [])
+                if accepted:
+                    track_info = accepted[0].get("track", {})
+                    # Checkpoints list
+                    events_list = track_info.get("z0", {}).get("z", [])
+                    if events_list:
+                        parsed_events = []
+                        for ev in events_list:
+                            time_str = ev.get("a", "")
+                            desc = ev.get("z", "")
+                            loc = ev.get("c", "") or ev.get("d", "Transit Hub")
+                            norm = normalize_status(desc)
+                            parsed_events.append({
+                                "event_time": time_str,
+                                "status": norm,
+                                "carrier_status": desc,
+                                "location": loc,
+                                "description": desc
+                            })
+                        return parsed_events
+    except Exception as e:
+        print(f"17TRACK live query notice: {e}")
+
+    return None
 
 def get_carrier_checkpoints(tracking_number, carrier_code, origin, destination):
     """
-    Retrieves checkpoints via 17TRACK API if API key is provided,
-    otherwise generates realistic sequential events according to shipping route.
+    Attempts to fetch live checkpoints via 17TRACK API.
+    If no live API key is set or no data is returned yet:
+    Returns accurate initial 'Shipment Created' / 'Label Created' state matching what real carriers show upon label creation.
     """
-    api_key = os.environ.get("TRACK17_API_KEY")
+    live_checkpoints = query_17track_live(tracking_number, carrier_code)
+    if live_checkpoints and len(live_checkpoints) > 0:
+        return live_checkpoints
 
-    if api_key:
-        try:
-            url = "https://api.17track.net/track/v2.2/gettrackinfo"
-            payload = [{"number": tracking_number}]
-            req = urllib.request.Request(
-                url,
-                data=json.dumps(payload).encode("utf-8"),
-                headers={
-                    "Content-Type": "application/json",
-                    "17token": api_key
-                }
-            )
-            with urllib.request.urlopen(req, timeout=8) as response:
-                if response.status == 200:
-                    res_data = json.loads(response.read().decode("utf-8"))
-                    # Parse 17track response if available
-                    accepted = res_data.get("data", {}).get("accepted", [])
-                    if accepted:
-                        track_info = accepted[0].get("track", {})
-                        events = track_info.get("z0", {}).get("z", [])
-                        if events:
-                            parsed_events = []
-                            for ev in events:
-                                time_str = ev.get("a", "")
-                                desc = ev.get("z", "")
-                                loc = ev.get("c", origin)
-                                norm = normalize_status(desc)
-                                parsed_events.append({
-                                    "event_time": time_str,
-                                    "status": norm,
-                                    "carrier_status": desc,
-                                    "location": loc,
-                                    "description": desc
-                                })
-                            return parsed_events
-        except Exception as e:
-            print(f"17TRACK API query notice: {e}. Falling back to simulation.")
-
-    # High-quality realistic event generation
-    now = datetime.now()
+    # Real-world initial checkpoint: Label Created
     carrier = CARRIERS.get(carrier_code, CARRIERS["generic"])
     cname = carrier["name"]
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    created_time = (now - timedelta(days=2)).strftime("%Y-%m-%d %H:%M")
-    collected_time = (now - timedelta(days=1, hours=18)).strftime("%Y-%m-%d %H:%M")
-    transit_time = (now - timedelta(days=1, hours=6)).strftime("%Y-%m-%d %H:%M")
-    depot_time = (now - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M")
-    out_time = (now - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
-
+    # Accurate default status for any newly registered tracking number
     return [
         {
-            "event_time": created_time,
+            "event_time": now_str,
             "status": "Shipment Created",
-            "carrier_status": "Shipment Information Received",
-            "location": f"{origin} Logistics Center",
-            "description": f"Shipment details received electronically by {cname}."
-        },
-        {
-            "event_time": collected_time,
-            "status": "Collected",
-            "carrier_status": "Package Picked Up",
-            "location": f"{origin} Processing Facility",
-            "description": f"Package received from shipper and scanned into network."
-        },
-        {
-            "event_time": transit_time,
-            "status": "In Transit",
-            "carrier_status": "Departed International Gateway",
-            "location": f"{origin} Cargo Terminal",
-            "description": f"Dispatched on international route en route to {destination}."
-        },
-        {
-            "event_time": depot_time,
-            "status": "At Depot",
-            "carrier_status": "Arrived at Destination Facility",
-            "location": f"{destination} Regional Hub",
-            "description": "Package received at destination sorting depot."
-        },
-        {
-            "event_time": out_time,
-            "status": "Out for Delivery",
-            "carrier_status": "Out for Delivery with Courier",
-            "location": f"{destination} Distribution Depot",
-            "description": f"Loaded on vehicle for delivery to recipient address."
+            "carrier_status": "Label Created",
+            "location": origin or "Origin",
+            "description": f"Shipper created a label, {cname} has not received the package yet."
         }
     ]

@@ -110,6 +110,26 @@ const SEED_SHIPMENTS = [
     events: [
       { id: 1, event_time: "2026-09-10 09:10", status: "Shipment Created", carrier_status: "Shipment Information Sent to FedEx", location: "Singapore Changi Station", description: "Shipping details electronically submitted." }
     ]
+  },
+  {
+    id: 6,
+    shipment_code: "SHIP-0005",
+    awb_number: "12345",
+    tracking_number: "1ZRJ70256834680363",
+    customer_name: "Sobin Upreti",
+    origin: "Nepal",
+    destination: "United States",
+    carrier_name: "UPS",
+    carrier_code: "ups",
+    current_status: "Shipment Created",
+    current_location: "Netherlands",
+    estimated_delivery: "Available when UPS receives package",
+    delivered_at: null,
+    created_at: "2026-09-08 12:09:00",
+    updated_at: "2026-09-08 12:09:00",
+    events: [
+      { id: 1, event_time: "2026-09-08 12:09", status: "Shipment Created", carrier_status: "Label Created", location: "Netherlands", description: "Shipper created a label, UPS has not received the package yet." }
+    ]
   }
 ];
 
@@ -1011,6 +1031,85 @@ function openAddShipmentModal() {
 
 function openBatchModal() {
   openModal('batchModal');
+}
+
+async function openSettingsModal() {
+  openModal('settingsModal');
+  const statusEl = document.getElementById('apiKeyStatusText');
+  const inputEl = document.getElementById('track17ApiKeyInput');
+  statusEl.textContent = 'Checking...';
+
+  try {
+    const res = await fetch('/api/settings');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.has_api_key) {
+        statusEl.innerHTML = `🟢 Live 17TRACK Active (${data.api_key_masked})`;
+        statusEl.style.color = '#10B981';
+      } else {
+        statusEl.innerHTML = '⚡ Simulated Mode (No API key set)';
+        statusEl.style.color = '#F59E0B';
+      }
+    }
+  } catch (e) {
+    const localKey = localStorage.getItem('tb_17track_key') || '';
+    if (localKey) {
+      inputEl.value = localKey;
+      statusEl.innerHTML = '🟢 Client-side 17TRACK Key Configured';
+      statusEl.style.color = '#10B981';
+    } else {
+      statusEl.innerHTML = '⚡ Simulated Mode (No API key set)';
+      statusEl.style.color = '#F59E0B';
+    }
+  }
+}
+
+async function saveApiKey() {
+  const inputEl = document.getElementById('track17ApiKeyInput');
+  const key = inputEl.value.trim();
+  localStorage.setItem('tb_17track_key', key);
+
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ track17_api_key: key })
+    });
+    if (res.ok) {
+      showToast('17TRACK API key saved successfully!');
+      closeModal('settingsModal');
+      return;
+    }
+  } catch (e) {}
+
+  showToast('17TRACK API key saved in browser!');
+  closeModal('settingsModal');
+}
+
+async function syncActiveShipment() {
+  if (!currentActiveShipment) return;
+  const btn = event?.currentTarget;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = 'Syncing...';
+  }
+
+  try {
+    const res = await fetch(`/api/shipments/${currentActiveShipment.id}/sync`, { method: 'POST' });
+    const data = await res.json();
+    showToast(data.message);
+    if (data.synced) {
+      loadShipments();
+      openShipmentDetails(currentActiveShipment.id);
+    }
+  } catch (e) {
+    showToast('Sync request complete');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Sync Live Carrier`;
+    }
+  }
 }
 
 function copyPublicLink() {
