@@ -3130,7 +3130,17 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // Serve Static UI
+    // Try serving via Cloudflare Worker Assets if bound
+    if (env.ASSETS && !path.startsWith("/api/")) {
+      try {
+        const assetResp = await env.ASSETS.fetch(request);
+        if (assetResp.status < 400) {
+          return assetResp;
+        }
+      } catch (e) {}
+    }
+
+    // Serve Static UI directly
     if (path === "/" || path === "/index.html" || !path.startsWith("/api/")) {
       return new Response(HTML_APP, {
         headers: {
@@ -3163,8 +3173,8 @@ export default {
       }
     }
 
-    // Fallback: Let client handle local state smoothly
-    return new Response(JSON.stringify({ error: "Endpoint handled client-side" }), {
+    // Fallback: Handled smoothly on client-side
+    return new Response(JSON.stringify({ error: "Handled by client-side adapter" }), {
       status: 404,
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
