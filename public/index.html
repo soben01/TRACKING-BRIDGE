@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRACKING BRIDGE — Multi-Carrier Logistics & Parcel Tracking</title>
+  <meta name="description" content="Unified multi-carrier parcel tracking system with automatic courier detection, normalized milestones, and comprehensive checkpoint history.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Navigation Header -->
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="brand">
+          <div class="brand-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <span class="pulse-indicator"></span>
+          </div>
+          <div class="brand-text">
+            <span class="brand-title">TRACKING<span class="text-accent">BRIDGE</span></span>
+            <span class="brand-subtitle">Multi-Carrier Logistics Hub</span>
+          </div>
+        </div>
+
+        <nav class="nav-tabs">
+          <button class="nav-tab active" id="tabDashboardBtn" onclick="switchView('dashboard')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Dashboard
+          </button>
+          <button class="nav-tab" id="tabPortalBtn" onclick="switchView('portal')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            Public Track Portal
+          </button>
+        </nav>
+
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="openBatchModal()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Import CSV
+          </button>
+          <button class="btn btn-primary" onclick="openAddShipmentModal()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Add Shipment
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Global Quick Track Hero Bar -->
+    <section class="hero-section">
+      <div class="hero-content">
+        <div class="hero-badge">⚡ Global Courier Auto-Detection Engine</div>
+        <h1 class="hero-heading">Track Any AWB or Courier Parcel</h1>
+        <p class="hero-subtext">Unified tracking across DPD, UPS, DHL, FedEx, Royal Mail, USPS, and 3,000+ carriers with standardized milestone progression.</p>
+        
+        <form class="search-box" onsubmit="handleQuickTrack(event)">
+          <div class="search-input-wrapper">
+            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input 
+              type="text" 
+              id="quickSearchInput" 
+              placeholder="Enter AWB Number or Tracking Number (e.g. 15504338529265)..."
+              autocomplete="off"
+            >
+            <button type="submit" class="search-btn">
+              Track Parcel
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+          </div>
+        </form>
+
+        <!-- Quick pill links -->
+        <div class="quick-examples">
+          <span class="example-label">Quick samples:</span>
+          <button class="example-pill" onclick="quickSample('15504338529265')">
+            <span class="pill-dot dpd"></span> 15504338529265 (Asmita Sunar / DPD)
+          </button>
+          <button class="example-pill" onclick="quickSample('1ZRJ70256812472852')">
+            <span class="pill-dot ups"></span> 1ZRJ70256812472852 (UPS)
+          </button>
+          <button class="example-pill" onclick="quickSample('9823412091')">
+            <span class="pill-dot dhl"></span> 9823412091 (DHL Express)
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN VIEW: DASHBOARD -->
+    <main id="dashboardView" class="main-content">
+      <!-- KPI Stats Row -->
+      <section class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon icon-total">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Total Shipments</span>
+            <span class="stat-value" id="statTotal">0</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-transit">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">In Transit</span>
+            <span class="stat-value" id="statTransit">0</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-out">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Out for Delivery</span>
+            <span class="stat-value" id="statOut">0</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-delivered">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          </div>
+          <div class="stat-info">
+            <span class="stat-label">Delivered</span>
+            <span class="stat-value" id="statDelivered">0</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dashboard Controls & Filters -->
+      <section class="toolbar-section">
+        <div class="filter-group">
+          <div class="inline-search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="filterSearch" placeholder="Filter by AWB, name, country..." oninput="handleFilterChange()">
+          </div>
+
+          <div class="status-pills" id="statusPills">
+            <button class="pill active" data-status="all" onclick="setStatusFilter('all', this)">All</button>
+            <button class="pill" data-status="Delivered" onclick="setStatusFilter('Delivered', this)">Delivered</button>
+            <button class="pill" data-status="Out for Delivery" onclick="setStatusFilter('Out for Delivery', this)">Out for Delivery</button>
+            <button class="pill" data-status="In Transit" onclick="setStatusFilter('In Transit', this)">In Transit</button>
+            <button class="pill" data-status="Shipment Created" onclick="setStatusFilter('Shipment Created', this)">Created</button>
+          </div>
+        </div>
+
+        <div class="toolbar-right">
+          <select id="carrierFilter" class="select-dropdown" onchange="handleFilterChange()">
+            <option value="all">All Carriers</option>
+            <option value="dpd-uk">DPD (UK)</option>
+            <option value="ups">UPS</option>
+            <option value="dhl">DHL Express</option>
+            <option value="fedex">FedEx</option>
+            <option value="royal-mail">Royal Mail</option>
+            <option value="usps">USPS</option>
+          </select>
+
+          <button class="btn btn-secondary btn-sm" onclick="exportCSV()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Export
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="loadShipments()" title="Refresh Shipments">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- Shipment Cards Grid -->
+      <section class="shipments-container">
+        <div id="shipmentsGrid" class="shipments-grid">
+          <!-- Populated dynamically -->
+        </div>
+        <div id="emptyState" class="empty-state" style="display: none;">
+          <div class="empty-icon">📦</div>
+          <h3>No Shipments Found</h3>
+          <p>Try adjusting your search criteria or add a new shipment to track.</p>
+          <button class="btn btn-primary" onclick="openAddShipmentModal()">Add First Shipment</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- PUBLIC PORTAL VIEW -->
+    <main id="portalView" class="main-content" style="display: none;">
+      <div class="portal-wrapper">
+        <div class="portal-card">
+          <div class="portal-badge">Customer Tracking Portal</div>
+          <h2>Live Package Tracking</h2>
+          <p>Check the real-time shipping status and full milestone history of your package.</p>
+          
+          <form class="portal-search" onsubmit="handlePortalTrack(event)">
+            <input type="text" id="portalInput" placeholder="Enter AWB or Tracking Number..." required>
+            <button type="submit" class="btn btn-primary">Track Now</button>
+          </form>
+
+          <div id="portalResultContainer" class="portal-result-container" style="display: none;">
+            <!-- Rendered parcel card and timeline -->
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="app-footer">
+      <div class="footer-inner">
+        <div>TRACKING BRIDGE Logistics Gateway • Built with high-fidelity Courier Normalization</div>
+        <div class="footer-carriers">
+          <span>Supported:</span>
+          <span class="carrier-tag">DPD</span>
+          <span class="carrier-tag">UPS</span>
+          <span class="carrier-tag">DHL</span>
+          <span class="carrier-tag">FedEx</span>
+          <span class="carrier-tag">17TRACK API</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- MODAL: DETAILED SHIPMENT TIMELINE -->
+  <div id="timelineModal" class="modal-overlay" onclick="closeModalOnBackdrop(event, 'timelineModal')">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <span id="modalCarrierBadge" class="carrier-badge">DPD (UK)</span>
+          <h2 id="modalAwbTitle" class="modal-title">15504338529265</h2>
+          <span id="modalStatusBadge" class="status-badge status-delivered">Delivered</span>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('timelineModal')">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Summary Strip -->
+        <div class="shipment-summary-grid">
+          <div class="summary-item">
+            <span class="summary-label">Customer</span>
+            <span id="modalCustomerName" class="summary-val">ASMITA SUNAR</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Carrier</span>
+            <span id="modalCarrierName" class="summary-val">DPD (UK)</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">AWB Number</span>
+            <span id="modalAwbNumber" class="summary-val font-mono">15504338529265</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Tracking Number</span>
+            <span id="modalTrackingNumber" class="summary-val font-mono">15504338529265</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Origin</span>
+            <span id="modalOrigin" class="summary-val">Nepal</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Destination</span>
+            <span id="modalDestination" class="summary-val">United Kingdom</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Delivery Date</span>
+            <span id="modalDeliveryDate" class="summary-val text-success">26 Aug 2026 14:26</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Internal Code</span>
+            <span id="modalShipmentCode" class="summary-val font-mono">SHIP-0001</span>
+          </div>
+        </div>
+
+        <!-- Visual Milestone Progress Stepper -->
+        <div class="milestone-stepper-box">
+          <h4 class="section-title">TRACKING PROGRESS</h4>
+          <div class="milestone-stepper" id="modalMilestoneStepper">
+            <!-- Dynamically injected milestones with progress connection -->
+          </div>
+        </div>
+
+        <!-- Full Event History Timeline -->
+        <div class="timeline-box">
+          <div class="timeline-header-row">
+            <h4 class="section-title">FULL CHECKPOINT HISTORY</h4>
+            <span class="event-count-badge" id="modalEventCount">8 Checkpoints</span>
+          </div>
+          <div class="timeline-stream" id="modalTimelineStream">
+            <!-- Dynamically populated event cards -->
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="copyPublicLink()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Copy Tracking Link
+        </button>
+        <button class="btn btn-primary" onclick="closeModal('timelineModal')">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD SHIPMENT -->
+  <div id="addModal" class="modal-overlay" onclick="closeModalOnBackdrop(event, 'addModal')">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title">Add New Shipment</h2>
+          <p class="modal-subtitle">Register AWB, customer details, and courier tracking information.</p>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('addModal')">&times;</button>
+      </div>
+
+      <form onsubmit="handleCreateShipment(event)" class="modal-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="newAwb">AWB Number *</label>
+            <input type="text" id="newAwb" placeholder="e.g. 15504338529265" required>
+          </div>
+          <div class="form-group">
+            <label for="newCustomer">Customer Name *</label>
+            <input type="text" id="newCustomer" placeholder="e.g. ASMITA SUNAR" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="label-with-detection">
+            <label for="newTracking">Carrier Tracking Number *</label>
+            <span id="detectedCarrierPill" class="detected-carrier-pill" style="display: none;">
+              ⚡ Detected: <strong id="detectedCarrierName">DPD</strong>
+            </span>
+          </div>
+          <input 
+            type="text" 
+            id="newTracking" 
+            placeholder="e.g. 15504338529265, 1Z9999999..., 982341..."
+            oninput="handleTrackingNumberInput(this.value)"
+            required
+          >
+          <span class="field-hint">Auto-detects DPD, UPS, DHL, FedEx, USPS, and Royal Mail.</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="newOrigin">Origin Country / City</label>
+            <input type="text" id="newOrigin" placeholder="e.g. Nepal" value="Nepal">
+          </div>
+          <div class="form-group">
+            <label for="newDestination">Destination Country / City</label>
+            <input type="text" id="newDestination" placeholder="e.g. United Kingdom" value="United Kingdom">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="newCarrierSelect">Carrier Override (Optional)</label>
+          <select id="newCarrierSelect" class="select-dropdown">
+            <option value="auto">✨ Auto-Detect Carrier</option>
+            <option value="dpd-uk">DPD (UK)</option>
+            <option value="ups">UPS</option>
+            <option value="dhl">DHL Express</option>
+            <option value="fedex">FedEx</option>
+            <option value="royal-mail">Royal Mail</option>
+            <option value="usps">USPS</option>
+          </select>
+        </div>
+
+        <div class="modal-footer" style="padding-right: 0; padding-bottom: 0;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('addModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveShipmentBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Add & Start Tracking
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: BATCH CSV IMPORT -->
+  <div id="batchModal" class="modal-overlay" onclick="closeModalOnBackdrop(event, 'batchModal')">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title">Batch Import Shipments</h2>
+          <p class="modal-subtitle">Paste CSV or Excel tab-delimited rows with AWB, Tracking No, Name, Origin, Destination.</p>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('batchModal')">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="batch-hint-box">
+          <strong>Format:</strong> <code>AWB, Tracking Number, Customer Name, Origin, Destination</code>
+          <button class="btn-text" onclick="loadSampleCsvData()">Paste Sample CSV</button>
+        </div>
+        <textarea id="batchCsvInput" class="batch-textarea" rows="7" placeholder="15504338529265, 15504338529265, ASMITA SUNAR, Nepal, United Kingdom
+1ZRJ70256812472852, 1ZRJ70256812472852, JOHN SMITH, Netherlands, Germany"></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('batchModal')">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="submitBatchImport()">Import Shipments</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toastNotification" class="toast-notification"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
