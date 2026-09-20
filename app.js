@@ -235,6 +235,9 @@ async function loadShipments() {
           (s.tracking_number && s.tracking_number.toLowerCase().includes(q)) ||
           (s.customer_name && s.customer_name.toLowerCase().includes(q)) ||
           (s.carrier_name && s.carrier_name.toLowerCase().includes(q)) ||
+        s.current_location || '',
+        s.current_status || 'Pending',
+        s.estimated_delivery || ''
           (s.origin && s.origin.toLowerCase().includes(q)) ||
           (s.destination && s.destination.toLowerCase().includes(q))
         );
@@ -295,6 +298,9 @@ function createShipmentCard(s) {
     <div>
       <div class="card-header-row">
         <span class="carrier-badge ${carrierClass}">${escapeHtml(s.carrier_name)}</span>
+        s.current_location || '',
+        s.current_status || 'Pending',
+        s.estimated_delivery || ''
         <span class="status-badge ${statusClass}">${escapeHtml(s.current_status)}</span>
       </div>
 
@@ -441,6 +447,9 @@ function renderTimelineModal(data) {
   // Header info
   const carrierBadge = document.getElementById('modalCarrierBadge');
   carrierBadge.textContent = s.carrier_name;
+        s.current_location || '',
+        s.current_status || 'Pending',
+        s.estimated_delivery || ''
   carrierBadge.className = `carrier-badge carrier-${s.carrier_code || 'generic'}`;
 
   document.getElementById('modalAwbTitle').textContent = s.awb_number;
@@ -452,6 +461,9 @@ function renderTimelineModal(data) {
   // Summary Grid
   document.getElementById('modalCustomerName').textContent = s.customer_name;
   document.getElementById('modalCarrierName').textContent = s.carrier_name;
+        s.current_location || '',
+        s.current_status || 'Pending',
+        s.estimated_delivery || ''
   document.getElementById('modalAwbNumber').textContent = s.awb_number;
   document.getElementById('modalTrackingNumber').textContent = s.tracking_number;
   document.getElementById('modalOrigin').textContent = s.origin;
@@ -616,6 +628,9 @@ async function handlePortalTrack(event) {
       <div style="background: var(--bg-surface); border: 1px solid var(--border-card); border-radius: 16px; padding: 1.5rem; margin-top: 1.5rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
           <span class="carrier-badge carrier-${s.carrier_code || 'generic'}">${escapeHtml(s.carrier_name)}</span>
+        s.current_location || '',
+        s.current_status || 'Pending',
+        s.estimated_delivery || ''
           <span class="status-badge ${getStatusClass(s.current_status)}">${escapeHtml(s.current_status)}</span>
         </div>
         <h3 style="font-size: 1.3rem; margin-bottom: 0.3rem;">${escapeHtml(s.customer_name)}</h3>
@@ -958,7 +973,7 @@ async function exportCSV() {
     }
 
     const rows = [
-      ['Booking Date', 'AWB', 'Consignee', 'Destination', 'Delivery Tracking Number', 'Service']
+      ['Booking Date', 'AWB', 'Consignee', 'Destination', 'Delivery Tracking no', 'Service', 'Remarks', 'Status', 'Delivery Due']
     ];
 
     shipments.forEach(s => {
@@ -968,7 +983,10 @@ async function exportCSV() {
         s.customer_name,
         s.destination,
         s.tracking_number,
-        s.carrier_name
+        s.carrier_name,
+        s.current_location || '',
+        s.current_status || 'Pending',
+        s.estimated_delivery || ''
       ]);
     });
 

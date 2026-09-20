@@ -397,7 +397,7 @@
       <div class="modal-header">
         <div>
           <h2 class="modal-title">Batch Import Shipments</h2>
-          <p class="modal-subtitle">Paste CSV or Excel tab-delimited rows with AWB, Tracking No, Name, Origin, Destination.</p>
+          <p class="modal-subtitle">Paste CSV or Excel tab-delimited rows with Booking Date, AWB, Consignee, Destination, Delivery Tracking no, Service.</p>
         </div>
         <button class="modal-close-btn" onclick="closeModal('batchModal')">&times;</button>
       </div>
@@ -407,8 +407,8 @@
           <strong>Format:</strong> <code>AWB, Tracking Number, Customer Name, Origin, Destination</code>
           <button class="btn-text" onclick="loadSampleCsvData()">Paste Sample CSV</button>
         </div>
-        <textarea id="batchCsvInput" class="batch-textarea" rows="7" placeholder="15504338529265, 15504338529265, ASMITA SUNAR, Nepal, United Kingdom
-1ZRJ70256812472852, 1ZRJ70256812472852, JOHN SMITH, Netherlands, Germany"></textarea>
+        <textarea id="batchCsvInput" class="batch-textarea" rows="7" placeholder="2023-10-15, 15504338529265, ASMITA SUNAR, United Kingdom, 15504338529265, DHL
+2023-10-16, 1ZRJ70256812472852, JOHN SMITH, Germany, 1ZRJ70256812472852, UPS"></textarea>
       </div>
 
       <div class="modal-footer">

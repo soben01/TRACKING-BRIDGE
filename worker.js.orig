@@ -1916,11 +1916,11 @@ body {
 
       <div class="modal-body">
         <div class="batch-hint-box">
-          <strong>Format:</strong> <code>Booking Date, AWB, Consignee, Destination, Delivery Tracking no, Service</code>
+          <strong>Format:</strong> <code>AWB, Tracking Number, Customer Name, Origin, Destination</code>
           <button class="btn-text" onclick="loadSampleCsvData()">Paste Sample CSV</button>
         </div>
-        <textarea id="batchCsvInput" class="batch-textarea" rows="7" placeholder="2023-10-15, 15504338529265, ASMITA SUNAR, United Kingdom, 15504338529265, DHL
-2023-10-16, 1ZRJ70256812472852, JOHN SMITH, Germany, 1ZRJ70256812472852, UPS"></textarea>
+        <textarea id="batchCsvInput" class="batch-textarea" rows="7" placeholder="15504338529265, 15504338529265, ASMITA SUNAR, Nepal, United Kingdom
+1ZRJ70256812472852, 1ZRJ70256812472852, JOHN SMITH, Netherlands, Germany"></textarea>
       </div>
 
       <div class="modal-footer">
@@ -2923,7 +2923,7 @@ async function exportCSV() {
     }
 
     const rows = [
-      ['Booking Date', 'AWB', 'Consignee', 'Destination', 'Delivery Tracking no', 'Service', 'Remarks', 'Status', 'Delivery Due']
+      ['Booking Date', 'AWB', 'Consignee', 'Destination', 'Delivery Tracking Number', 'Service']
     ];
 
     shipments.forEach(s => {
@@ -2933,10 +2933,7 @@ async function exportCSV() {
         s.customer_name,
         s.destination,
         s.tracking_number,
-        s.carrier_name,
-        s.current_location || '',
-        s.current_status || 'Pending',
-        s.estimated_delivery || ''
+        s.carrier_name
       ]);
     });
 
