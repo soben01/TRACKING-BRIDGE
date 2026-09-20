@@ -2813,10 +2813,10 @@ async function deleteShipment(shipmentId) {
 // --------------------------------------------------------------------------
 
 function loadSampleCsvData() {
-  const sample = `2023-10-15, 15504338529265, ASMITA SUNAR, United Kingdom, 15504338529265, DHL
+  const sample = \`2023-10-15, 15504338529265, ASMITA SUNAR, United Kingdom, 15504338529265, DHL
 2023-10-16, 1ZRJ70256812472852, JOHN SMITH, Germany, 1ZRJ70256812472852, UPS
 2023-10-17, 5592810234, SARAH CONNOR, United States, DHL5592810234, DHL
-2023-10-18, 992014820124, DAVID BECKHAM, Australia, FDX9920148201, FedEx`;
+2023-10-18, 992014820124, DAVID BECKHAM, Australia, FDX9920148201, FedEx\`;
   document.getElementById('batchCsvInput').value = sample;
 }
 
@@ -2827,7 +2827,7 @@ async function submitBatchImport() {
     return;
   }
 
-  const lines = text.split('\n');
+  const lines = text.split('\\n');
   const items = [];
 
   for (let line of lines) {
@@ -2875,7 +2875,7 @@ async function submitBatchImport() {
         const created_at_val = it.booking_date ? it.booking_date : nowStr;
         all.unshift({
           id: Date.now() + Math.floor(Math.random() * 1000),
-          shipment_code: `SHIP-${String(all.length + 1).padStart(4, '0')}`,
+          shipment_code: \`SHIP-\${String(all.length + 1).padStart(4, '0')}\`,
           awb_number: it.awb,
           tracking_number: it.tracking_number,
           customer_name: it.customer_name,
@@ -2884,15 +2884,15 @@ async function submitBatchImport() {
           carrier_name: carrier_name,
           carrier_code: carrier_code,
           current_status: 'Shipment Created',
-          current_location: `Origin Hub Sorting Facility`,
+          current_location: \`Origin Hub Sorting Facility\`,
           estimated_delivery: 'In 3-5 business days',
           created_at: created_at_val,
           updated_at: nowStr,
-          events: [{ id: 1, event_time: created_at_val, status: 'Shipment Created', carrier_status: 'Order Placed', location: `Origin Hub`, description: 'Shipment details imported.' }]
+          events: [{ id: 1, event_time: created_at_val, status: 'Shipment Created', carrier_status: 'Order Placed', location: \`Origin Hub\`, description: 'Shipment details imported.' }]
         });
       });
       saveLocalShipments(all);
-      showToast(`Successfully imported ${items.length} shipments`);
+      showToast(\`Successfully imported \${items.length} shipments\`);
     }
 
     closeModal('batchModal');
