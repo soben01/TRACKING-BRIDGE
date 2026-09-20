@@ -848,10 +848,10 @@ async function deleteShipment(shipmentId) {
 // --------------------------------------------------------------------------
 
 function loadSampleCsvData() {
-  const sample = `15504338529265, 15504338529265, ASMITA SUNAR, Nepal, United Kingdom
-1ZRJ70256812472852, 1ZRJ70256812472852, JOHN SMITH, Netherlands, Germany
-DHL5592810234, 5592810234, SARAH CONNOR, Japan, United States
-FDX9920148201, 992014820124, DAVID BECKHAM, Singapore, Australia`;
+  const sample = `2023-10-15, 15504338529265, ASMITA SUNAR, United Kingdom, 15504338529265, DHL
+2023-10-16, 1ZRJ70256812472852, JOHN SMITH, Germany, 1ZRJ70256812472852, UPS
+2023-10-17, 5592810234, SARAH CONNOR, United States, DHL5592810234, DHL
+2023-10-18, 992014820124, DAVID BECKHAM, Australia, FDX9920148201, FedEx`;
   document.getElementById('batchCsvInput').value = sample;
 }
 
@@ -871,11 +871,12 @@ async function submitBatchImport() {
     const cols = trimmed.split(',').map(c => c.trim());
     if (cols.length >= 2) {
       items.push({
-        awb: cols[0],
-        tracking_number: cols[1] || cols[0],
+        booking_date: cols[0],
+        awb: cols[1],
         customer_name: cols[2] || 'Customer',
-        origin: cols[3] || 'Origin',
-        destination: cols[4] || 'Destination'
+        destination: cols[3] || 'Destination',
+        tracking_number: cols[4] || cols[1],
+        service: cols[5] || 'Unknown'
       });
     }
   }
@@ -904,23 +905,25 @@ async function submitBatchImport() {
       const all = getLocalShipments();
       const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
       items.forEach(it => {
-        const det = clientDetectCarrier(it.tracking_number);
+        let carrier_name = it.service && it.service !== 'Unknown' ? it.service : clientDetectCarrier(it.tracking_number).name;
+        let carrier_code = it.service && it.service !== 'Unknown' ? it.service.toUpperCase().replace(' ', '_') : clientDetectCarrier(it.tracking_number).code;
+        const created_at_val = it.booking_date ? it.booking_date : nowStr;
         all.unshift({
           id: Date.now() + Math.floor(Math.random() * 1000),
           shipment_code: `SHIP-${String(all.length + 1).padStart(4, '0')}`,
           awb_number: it.awb,
           tracking_number: it.tracking_number,
           customer_name: it.customer_name,
-          origin: it.origin,
+          origin: 'Origin Hub',
           destination: it.destination,
-          carrier_name: det.name,
-          carrier_code: det.code,
+          carrier_name: carrier_name,
+          carrier_code: carrier_code,
           current_status: 'Shipment Created',
-          current_location: `${it.origin} Sorting Facility`,
+          current_location: `Origin Hub Sorting Facility`,
           estimated_delivery: 'In 3-5 business days',
-          created_at: nowStr,
+          created_at: created_at_val,
           updated_at: nowStr,
-          events: [{ id: 1, event_time: nowStr, status: 'Shipment Created', carrier_status: 'Order Placed', location: `${it.origin} Hub`, description: 'Shipment details imported.' }]
+          events: [{ id: 1, event_time: created_at_val, status: 'Shipment Created', carrier_status: 'Order Placed', location: `Origin Hub`, description: 'Shipment details imported.' }]
         });
       });
       saveLocalShipments(all);
@@ -955,21 +958,17 @@ async function exportCSV() {
     }
 
     const rows = [
-      ['ID', 'AWB Number', 'Tracking Number', 'Customer Name', 'Carrier', 'Status', 'Origin', 'Destination', 'Current Location', 'Last Updated']
+      ['Booking Date', 'AWB', 'Consignee', 'Destination', 'Delivery Tracking Number', 'Service']
     ];
 
     shipments.forEach(s => {
       rows.push([
-        s.shipment_code,
+        s.created_at,
         s.awb_number,
-        s.tracking_number,
         s.customer_name,
-        s.carrier_name,
-        s.current_status,
-        s.origin,
         s.destination,
-        s.current_location,
-        s.updated_at
+        s.tracking_number,
+        s.carrier_name
       ]);
     });
 

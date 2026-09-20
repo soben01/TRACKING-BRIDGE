@@ -495,18 +495,26 @@ class TrackingBridgeHandler(BaseHTTPRequestHandler):
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         for it in items:
+            booking_date = str(it.get("booking_date", "")).strip()
+            created_at_val = booking_date if booking_date else now_str
+
             awb = str(it.get("awb", "") or it.get("awb_number", "")).strip()
             tracking_no = str(it.get("tracking_number", "")).strip() or awb
             name = str(it.get("customer_name", "") or it.get("name", "")).strip()
-            origin = str(it.get("origin", "")).strip() or "Origin Hub"
+            origin = "Origin Hub"
             dest = str(it.get("destination", "")).strip() or "Destination Hub"
+            service = str(it.get("service", "")).strip()
 
             if not awb or not name:
                 continue
 
-            detected = detect_carrier(tracking_no)
-            carrier_code = detected["code"]
-            carrier_name = detected["name"]
+            if service and service != 'Unknown':
+                carrier_name = service
+                carrier_code = service.upper().replace(' ', '_')
+            else:
+                detected = detect_carrier(tracking_no)
+                carrier_code = detected["code"]
+                carrier_name = detected["name"]
 
             cursor.execute("SELECT COUNT(*) FROM shipments")
             seq = cursor.fetchone()[0] + 1
@@ -526,7 +534,7 @@ class TrackingBridgeHandler(BaseHTTPRequestHandler):
             """, (
                 shipment_code, awb, tracking_no, name, origin, dest,
                 carrier_name, carrier_code, status, loc,
-                "In 3-5 business days", now_str, now_str
+                "In 3-5 business days", created_at_val, now_str
             ))
             s_id = cursor.lastrowid
 
